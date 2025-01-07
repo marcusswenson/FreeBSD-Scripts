@@ -5,7 +5,7 @@
 # Author: mswenson.dev
 # Date: 2025.01.06
 #
-# This script makes it easier to select a jail to login to as root.
+# This script makes it easier to select a FreeBSD jail to login to as root.
 ################################################################################
 
 
@@ -15,11 +15,11 @@ use utf8;
 use Data::Dumper;
 
 
-my $cmd_output = `jls`;
-my @cmd_output = split("\n", $cmd_output);
+# Capture a list of output showing which jails are running.
+my @cmd_output = split("\n", my $cmd_output = `jls`);
 shift(@cmd_output);
 
-
+# Go through each jail and capture the jail_id, jail_name, and jail_path
 my @jail_names;
 foreach my $line (@cmd_output) {
     $line =~ /^\s+(\d+)\s+(\w+)\s+(\/.+)$/;
@@ -31,7 +31,7 @@ foreach my $line (@cmd_output) {
 }
 
 print "\n";
-print "Select the number of the jail to login to:\n\n";
+print ">> Select the number of the jail to login to:\n\n";
 
 my $number = 1;
 foreach (@jail_names) {
@@ -39,15 +39,15 @@ foreach (@jail_names) {
     $number++;
 }
 
-print "\nSelection: ";
+print "\n>> Selection: ";
 chomp(my $selection = <STDIN>);
-$selection =~ s/\s//g; # remove whitespace globally
+$selection =~ s/\s//g; # Remove whitespace globally
 
-# now handle our selection - either print an error or drop to a login.
+# Now handle our selection - either print an error or drop to a login.
 if ($selection =~ /^\d+$/ && $selection > 0 && defined($jail_names[$selection - 1])) {
     my $selected_jail_name = $jail_names[$selection - 1];
-    print "\nLogging into '${selected_jail_name}' jail as root...\n\n";
+    print "\n>> Logging into '${selected_jail_name}' jail as root...\n\n";
     exec("jexec ${selected_jail_name} login -f root");
 } else {
-    print "\n'${selection}' is not a valid choice.\n\n";
+    print "\n>> '${selection}' is not a valid choice.\n\n";
 }
