@@ -2,50 +2,54 @@
 
 
 ################################################################################
-# Author: mswenson.dev
+# Author: M. Swenson - me@mswenson.dev
 # Date: 2025.01.06
 #
 # This script makes it easier to select a FreeBSD jail to login to as root.
 ################################################################################
 
 
+use utf8;
 use strict;
 use warnings;
-use utf8;
+use JSON::XS;
 use Data::Dumper;
 
 
-# Capture a list of output showing which jails are running.
-my @cmd_output = split("\n", my $cmd_output = `jls`);
-shift(@cmd_output);
-
-# Go through each jail and capture the jail_id, jail_name, and jail_path
-my @jail_names;
-foreach my $line (@cmd_output) {
-    $line =~ /^\s+(\d+)\s+(\w+)\s+(\/.+)$/;
-    my $jail_id = $1;
-    my $jail_name = $2;
-    my $jail_path = $3;
-
-    push(@jail_names, $jail_name);
+sub get_running_jails {
+    decode_json(`jls --libxo=json`)->{'jail-information'}->{'jail'};
 }
 
-print "\n";
-print ">> Select the number of the jail to login to:\n\n";
+sub get_jail_selection {
+    my $jails = shift;
 
-my $number = 1;
-foreach (@jail_names) {
-    print "\t${number}. ${_}\n";
-    $number++;
+    print "\n";
+    print ">> Select the number of the jail to login to:\n\n";
+
+    my $selection_number = 0;
+    foreach (@$jails) {
+        $selection_number++;
+        print "\t${selection_number}. " . $_->{'hostname'} . "\n";
+    }
+
+    print "\n>> Selection: ";
+    chomp(my $selection = <STDIN>);
+    $selection =~ s/\s//g; # Remove whitespace globally
+
+    $selection;
 }
 
-print "\n>> Selection: ";
-chomp(my $selection = <STDIN>);
-$selection =~ s/\s//g; # Remove whitespace globally
+
+
+# Get a JSON response with details of running jails.
+my $jails = get_running_jails();
+my $selection = get_jail_selection($jails);
 
 # Now handle our selection - either print an error or drop to a login.
-if ($selection =~ /^\d+$/ && $selection > 0 && defined($jail_names[$selection - 1])) {
-    my $selected_jail_name = $jail_names[$selection - 1];
+if ($selection =~ /^\d+$/ && $selection > 0 && $selection <= scalar(@{$jails})) {
+    my $selected_jail_name = $jails->[ $selection - 1 ]->{'hostname'};
+
+    # Run the jail login command.
     print "\n>> Logging into '${selected_jail_name}' jail as root...\n\n";
     exec("jexec ${selected_jail_name} login -f root");
 } else {
